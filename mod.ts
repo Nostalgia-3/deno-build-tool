@@ -1,16 +1,15 @@
 // @ts-types="npm:@types/yargs@17.0.33"
-// deno-lint-ignore verbatim-module-syntax
-import yargs, * as y from 'yargs';
+import yargs, { type Options } from 'yargs';
 // @ts-types="npm:@types/ws@8.5.14"
 import { WebSocketServer } from 'ws';
 
-// TODO: I should probably replace node:* with the Deno standard
-// library equivalents
-
 import { existsSync } from 'node:fs';
+import { execSync } from "node:child_process";
+import process from 'node:process';
 import path from 'node:path';
+import fs from 'node:fs';
 
-interface Option extends y.Options {
+interface Option extends Options {
     name: string
 }
 
@@ -90,7 +89,7 @@ export class Builder {
                 console.error(`  - \x1b[${i == 0 ? '91' : '37'}m${this.taskStack[i]}\x1b[0m`);
             }
         }
-        Deno.exit(1);
+        process.exit(1);
     }
 
     /**
@@ -178,7 +177,7 @@ export class Builder {
     copy(source: string, dest: string): boolean {
         if(!existsSync(source)) return false;
         try {
-            Deno.copyFileSync(source, dest);
+            fs.copyFileSync(source, dest);
         } catch(e) {
             this.warn(e);
             return false;
@@ -194,7 +193,10 @@ export class Builder {
     remove(path: string): void {
         if(existsSync(path)) {
             this.verbose(`Removing \x1b[32m${path}\x1b[0m`);
-            Deno.removeSync(path, { recursive: true });
+            if(fs.statSync(path).isDirectory())
+                fs.rmdirSync(path, { recursive: true });
+            else
+                fs.rmSync(path);
         }
     }
 
@@ -208,7 +210,7 @@ export class Builder {
 
         if(!existsSync(path)) {
             this.verbose(`Creating \x1b[32m${path}\x1b[0m`);
-            Deno.mkdirSync(path, { recursive: true });
+            fs.mkdirSync(path, { recursive: true });
         }
     }
 
@@ -217,20 +219,18 @@ export class Builder {
      * @param command the command to run 
      * @param continueIfFailed whether to continue if the command fails
      */
-    runCommand(command: string, continueIfFailed = false): Deno.CommandOutput | undefined {
-        const secs = command.split(' ');
-        const fn = secs.shift();
-        if(!fn) {
-            this.error(`Tried to run a command that doesn't have a binary`);
-            return;
-        }
+    runCommand(command: string, continueIfFailed = false): boolean | never {
         this.verbose(`${command}`);
-        const com = new Deno.Command(fn, { args: secs, stdout: 'inherit', stdin: 'inherit', stderr: 'inherit' });
-        const resp = com.outputSync();
-        if(!resp.success) {
-            if(!continueIfFailed) Deno.exit(1);
+        
+        try {
+            execSync(command, { stdio: 'inherit', encoding: 'ascii' });
+            return true;
+        } catch {
+            if(!continueIfFailed) {
+                this.fatal(`Failed command \x1b[32m${command}\x1b[0m`);
+            }
+            return false;
         }
-        return resp;
     }
 
     /**
@@ -250,8 +250,8 @@ export class Builder {
             return;
         }
 
-        const sourceStats = Deno.statSync(source);
-        const destStats = Deno.statSync(destination);
+        const sourceStats = fs.statSync(source);
+        const destStats = fs.statSync(destination);
         
         if(!sourceStats.mtime || (sourceStats.mtime?.getTime() ?? 0) > (destStats.mtime?.getTime() ?? 0)) {
             this.runCommand(command);
@@ -268,9 +268,9 @@ export class Builder {
     scanDir(path: string, matches?: RegExp, ignores?: RegExp): string[] {
         let fnames: string[] = [];
     
-        const files = Deno.readDirSync(path);
+        const files = fs.readdirSync(path, { withFileTypes: true });
         for(const file of files) {
-            if(file.isDirectory) {
+            if(file.isDirectory()) {
                 fnames = fnames.concat(this.scanDir(this.joinPath(path, file.name), matches, ignores));
             } else {
                 if((ignores && file.name.match(ignores)) || (matches && !file.name.match(matches))) {
@@ -330,7 +330,7 @@ export class Builder {
                 const msg = v.toString();
 
                 if(msg.startsWith('r::')) {
-                    s.send((this.runCommand(msg.slice(3), true)?.success ?? true) ? 0 : 1);
+                    s.send((this.runCommand(msg.slice(3), true) ?? true) ? 0 : 1);
                 }
             });
         });
