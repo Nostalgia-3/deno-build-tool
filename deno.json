@@ -1,0 +1,10 @@
+{
+  "name": "@nostalgia3/build-tool",
+  "version": "1.0.0",
+  "exports": "./mod.ts",
+  "license": "MIT",
+  "imports": {
+    "yargs": "npm:yargs@17.7.2",
+    "ws": "npm:ws@8.18.1"
+  }
+}
