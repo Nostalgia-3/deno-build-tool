@@ -1,5 +1,8 @@
 # Deno Build Tool
 
+[![JSR](https://jsr.io/badges/@nostalgia3/build-tool)](https://jsr.io/@nostalgia3/build-tool)
+[![JSR Score](https://jsr.io/badges/@nostalgia3/build-tool/score)](https://jsr.io/@nostalgia3/build-tool)
+
 A build tool for Deno scripts meant to build projects. You should probably use `make` or some other build tool instead.
 
 ## Usage
