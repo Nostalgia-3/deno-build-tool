@@ -65,7 +65,7 @@ export class Builder {
      * @param data the message to write
      */
     warn(...data: unknown[]): void {
-        console.log(`\x1b[1;93mVERBOSE\x1b[0m(\x1b[33m${this.taskStack.at(-1) ?? '*'}\x1b[0m):`, ...data);
+        console.log(`\x1b[1;93mWARN\x1b[0m(\x1b[33m${this.taskStack.at(-1) ?? '*'}\x1b[0m):`, ...data);
     }
 
     /**
@@ -243,7 +243,6 @@ export class Builder {
         if(!existsSync(source)) {
             this.fatal(`"${source}" doesn't exist, despite being used in \x1b[94mcompile\x1b[0m()`);
         }
-
         
         if(!existsSync(destination)) {
             this.runCommand(command);
@@ -352,6 +351,7 @@ export class Builder {
             this.runCommand(s);
             return;
         }
+
         try {
             const ws = new WebSocket(`ws://${ip ?? '127.0.0.1'}:${port}`);
             
@@ -372,8 +372,8 @@ export class Builder {
                 this.fatal((ev as ErrorEvent).message);
             });
         } catch (e) {
-            console.error(`\x1b[90m[\x1b[31m%\x1b[90m]\x1b[0m Failed to send`);
-            console.error(e);
+            this.error(`Failed to send/run command \x1b[31m${s}\x1b[0m`);
+            this.error(e);
         }
     }
 }
